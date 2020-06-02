@@ -1,6 +1,6 @@
 use tui::backend::TestBackend;
 use tui::buffer::Buffer;
-use tui::layout::Constraint;
+use tui::layout::{Constraint, Margin};
 use tui::widgets::{Block, Borders, Row, Table};
 use tui::Terminal;
 
@@ -410,6 +410,243 @@ fn widgets_table_columns_widths_can_use_mixed_constraints() {
             "│Row21            Row22      │",
             "│Row31            Row32      │",
             "│Row41            Row42      │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+}
+
+#[test]
+pub fn widgets_table_should_respect_horizontal_margins() {
+    let test_case = |margin, width, expected| {
+        let backend = TestBackend::new(width, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|mut f| {
+                let size = f.size();
+                let table = Table::new(
+                    ["Head1", "Head2", "Head3"].iter(),
+                    vec![
+                        Row::Data(["Row11", "Row12", "Row13"].iter()),
+                        Row::Data(["Row21", "Row22", "Row23"].iter()),
+                        Row::Data(["Row31", "Row32", "Row33"].iter()),
+                        Row::Data(["Row41", "Row42", "Row43"].iter()),
+                    ]
+                    .into_iter(),
+                )
+                .block(Block::default().borders(Borders::ALL))
+                .widths(&[
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                ])
+                .column_spacing(1)
+                .margin(Margin::default().horizontal(margin));
+                f.render_widget(table, size);
+            })
+            .unwrap();
+        terminal.backend().assert_buffer(&expected);
+    };
+
+    test_case(
+        0,
+        30,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
+            "│Row31 Row32 Row33           │",
+            "│Row41 Row42 Row43           │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        30,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│ Head1 Head2 Head3          │",
+            "│                            │",
+            "│ Row11 Row12 Row13          │",
+            "│ Row21 Row22 Row23          │",
+            "│ Row31 Row32 Row33          │",
+            "│ Row41 Row42 Row43          │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        21,
+        Buffer::with_lines(vec![
+            "┌───────────────────┐",
+            "│ Head1 Head2 Head3 │",
+            "│                   │",
+            "│ Row11 Row12 Row13 │",
+            "│ Row21 Row22 Row23 │",
+            "│ Row31 Row32 Row33 │",
+            "│ Row41 Row42 Row43 │",
+            "│                   │",
+            "│                   │",
+            "└───────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        19,
+        Buffer::with_lines(vec![
+            "┌─────────────────┐",
+            "│ Head1 Head2 Hea │",
+            "│                 │",
+            "│ Row11 Row12 Row │",
+            "│ Row21 Row22 Row │",
+            "│ Row31 Row32 Row │",
+            "│ Row41 Row42 Row │",
+            "│                 │",
+            "│                 │",
+            "└─────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        12,
+        Buffer::with_lines(vec![
+            "┌──────────┐",
+            "│ Head1 He │",
+            "│          │",
+            "│ Row11 Ro │",
+            "│ Row21 Ro │",
+            "│ Row31 Ro │",
+            "│ Row41 Ro │",
+            "│          │",
+            "│          │",
+            "└──────────┘",
+        ]),
+    );
+
+    test_case(
+        2,
+        21,
+        Buffer::with_lines(vec![
+            "┌───────────────────┐",
+            "│  Head1 Head2 Hea  │",
+            "│                   │",
+            "│  Row11 Row12 Row  │",
+            "│  Row21 Row22 Row  │",
+            "│  Row31 Row32 Row  │",
+            "│  Row41 Row42 Row  │",
+            "│                   │",
+            "│                   │",
+            "└───────────────────┘",
+        ]),
+    );
+}
+
+#[test]
+pub fn widgets_table_should_respect_vertical_margins() {
+    let test_case = |margin, height, expected| {
+        let backend = TestBackend::new(30, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|mut f| {
+                let size = f.size();
+                let table = Table::new(
+                    ["Head1", "Head2", "Head3"].iter(),
+                    vec![
+                        Row::Data(["Row11", "Row12", "Row13"].iter()),
+                        Row::Data(["Row21", "Row22", "Row23"].iter()),
+                        Row::Data(["Row31", "Row32", "Row33"].iter()),
+                        Row::Data(["Row41", "Row42", "Row43"].iter()),
+                    ]
+                    .into_iter(),
+                )
+                .block(Block::default().borders(Borders::ALL))
+                .widths(&[
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                ])
+                .column_spacing(1)
+                .margin(Margin::default().vertical(margin));
+                f.render_widget(table, size);
+            })
+            .unwrap();
+        terminal.backend().assert_buffer(&expected);
+    };
+
+    test_case(
+        0,
+        10,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
+            "│Row31 Row32 Row33           │",
+            "│Row41 Row42 Row43           │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        10,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│                            │",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
+            "│Row31 Row32 Row33           │",
+            "│Row41 Row42 Row43           │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        1,
+        9,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│                            │",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
+            "│Row31 Row32 Row33           │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        2,
+        10,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│                            │",
+            "│                            │",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
             "│                            │",
             "│                            │",
             "└────────────────────────────┘",

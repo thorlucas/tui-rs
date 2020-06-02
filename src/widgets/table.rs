@@ -1,6 +1,6 @@
 use crate::{
     buffer::Buffer,
-    layout::{Constraint, Rect},
+    layout::{Constraint, Rect, Margin},
     style::Style,
     widgets::{Block, StatefulWidget, Widget},
 };
@@ -101,6 +101,8 @@ pub struct Table<'a, H, R> {
     highlight_symbol: Option<&'a str>,
     /// Data to display in each row
     rows: R,
+    /// Margins around edges
+    margin: Margin
 }
 
 impl<'a, H, R> Default for Table<'a, H, R>
@@ -120,6 +122,7 @@ where
             highlight_style: Style::default(),
             highlight_symbol: None,
             rows: R::default(),
+            margin: Margin::default(),
         }
     }
 }
@@ -142,6 +145,7 @@ where
             highlight_style: Style::default(),
             highlight_symbol: None,
             rows,
+            margin: Margin::default(),
         }
     }
     pub fn block(mut self, block: Block<'a>) -> Table<'a, H, R> {
@@ -207,6 +211,11 @@ where
         self.header_gap = gap;
         self
     }
+
+    pub fn margin(mut self, margin: Margin) -> Table<'a, H, R> {
+        self.margin = margin;
+        self
+    }   
 }
 
 impl<'a, H, D, R> StatefulWidget for Table<'a, H, R>
@@ -227,7 +236,7 @@ where
                 b.inner(area)
             }
             None => area,
-        };
+        }.inner(&self.margin);
 
         buf.set_background(table_area, self.style.bg);
 
@@ -283,7 +292,12 @@ where
         // Draw header
         if y < table_area.bottom() {
             for (w, t) in solved_widths.iter().zip(self.header.by_ref()) {
-                buf.set_stringn(x, y, format!("{}", t), *w as usize, self.header_style);
+                if x >= table_area.right() {
+                    break;
+                }
+
+                let space_remaining: usize = (table_area.right() - x) as usize;
+                buf.set_stringn(x, y, format!("{}", t), (*w as usize).min(space_remaining), self.header_style);
                 x += *w + self.column_spacing;
             }
         }
@@ -302,12 +316,12 @@ where
         // Draw rows
         let default_style = Style::default();
         if y < table_area.bottom() {
-            let remaining = (table_area.bottom() - y) as usize;
+            let height_remaining = (table_area.bottom() - y) as usize;
 
             // Make sure the table shows the selected item
             state.offset = if let Some(selected) = selected {
-                if selected >= remaining + state.offset - 1 {
-                    selected + 1 - remaining
+                if selected >= height_remaining + state.offset - 1 {
+                    selected + 1 - height_remaining
                 } else if selected < state.offset {
                     selected
                 } else {
@@ -316,7 +330,7 @@ where
             } else {
                 0
             };
-            for (i, row) in self.rows.skip(state.offset).take(remaining).enumerate() {
+            for (i, row) in self.rows.skip(state.offset).take(height_remaining).enumerate() {
                 let (data, style, symbol) = match row {
                     Row::Data(d) | Row::StyledData(d, _)
                         if Some(i) == state.selected.map(|s| s - state.offset) =>
@@ -328,12 +342,18 @@ where
                 };
                 x = table_area.left();
                 for (c, (w, elt)) in solved_widths.iter().zip(data).enumerate() {
+                    if x >= table_area.right() {
+                        break;
+                    }
+
+                    let width_remaining: usize = (table_area.right() - x) as usize;
+                    
                     let s = if c == 0 {
                         format!("{}{}", symbol, elt)
                     } else {
                         format!("{}", elt)
                     };
-                    buf.set_stringn(x, y + i as u16, s, *w as usize, style);
+                    buf.set_stringn(x, y + i as u16, s, (*w as usize).min(width_remaining), style);
                     x += *w + self.column_spacing;
                 }
             }
