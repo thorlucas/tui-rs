@@ -1,6 +1,6 @@
 use crate::{
     buffer::Buffer,
-    layout::{Constraint, Rect, Margin},
+    layout::{Constraint, Margin, Rect},
     style::Style,
     widgets::{Block, StatefulWidget, Widget},
 };
@@ -102,7 +102,7 @@ pub struct Table<'a, H, R> {
     /// Data to display in each row
     rows: R,
     /// Margins around edges
-    margin: Margin
+    margin: Margin,
 }
 
 impl<'a, H, R> Default for Table<'a, H, R>
@@ -215,7 +215,7 @@ where
     pub fn margin(mut self, margin: Margin) -> Table<'a, H, R> {
         self.margin = margin;
         self
-    }   
+    }
 }
 
 impl<'a, H, D, R> StatefulWidget for Table<'a, H, R>
@@ -236,7 +236,8 @@ where
                 b.inner(area)
             }
             None => area,
-        }.inner(&self.margin);
+        }
+        .inner(&self.margin);
 
         buf.set_background(table_area, self.style.bg);
 
@@ -297,7 +298,13 @@ where
                 }
 
                 let space_remaining: usize = (table_area.right() - x) as usize;
-                buf.set_stringn(x, y, format!("{}", t), (*w as usize).min(space_remaining), self.header_style);
+                buf.set_stringn(
+                    x,
+                    y,
+                    format!("{}", t),
+                    (*w as usize).min(space_remaining),
+                    self.header_style,
+                );
                 x += *w + self.column_spacing;
             }
         }
@@ -309,9 +316,11 @@ where
             None => (None, self.style),
         };
         let highlight_symbol = self.highlight_symbol.unwrap_or("");
-        let blank_symbol = iter::repeat(" ")
-            .take(highlight_symbol.width())
-            .collect::<String>();
+        let left_additional_margin = if highlight_symbol.width() > self.margin.horizontal as usize {
+            highlight_symbol.width() - self.margin.horizontal as usize
+        } else {
+            0
+        };
 
         // Draw rows
         let default_style = Style::default();
@@ -330,31 +339,49 @@ where
             } else {
                 0
             };
-            for (i, row) in self.rows.skip(state.offset).take(height_remaining).enumerate() {
-                let (data, style, symbol) = match row {
+            for (i, row) in self
+                .rows
+                .skip(state.offset)
+                .take(height_remaining)
+                .enumerate()
+            {
+                let (data, style, is_selected) = match row {
                     Row::Data(d) | Row::StyledData(d, _)
                         if Some(i) == state.selected.map(|s| s - state.offset) =>
                     {
-                        (d, highlight_style, highlight_symbol)
+                        (d, highlight_style, true)
                     }
-                    Row::Data(d) => (d, default_style, blank_symbol.as_ref()),
-                    Row::StyledData(d, s) => (d, s, blank_symbol.as_ref()),
+                    Row::Data(d) => (d, default_style, false),
+                    Row::StyledData(d, s) => (d, s, false),
                 };
-                x = table_area.left();
-                for (c, (w, elt)) in solved_widths.iter().zip(data).enumerate() {
+
+                x = table_area.left() + left_additional_margin as u16;
+                for (_c, (w, elt)) in solved_widths.iter().zip(data).enumerate() {
                     if x >= table_area.right() {
                         break;
                     }
 
                     let width_remaining: usize = (table_area.right() - x) as usize;
-                    
-                    let s = if c == 0 {
-                        format!("{}{}", symbol, elt)
-                    } else {
-                        format!("{}", elt)
-                    };
-                    buf.set_stringn(x, y + i as u16, s, (*w as usize).min(width_remaining), style);
+
+                    buf.set_stringn(
+                        x,
+                        y + i as u16,
+                        format!("{}", elt),
+                        (*w as usize).min(width_remaining),
+                        style,
+                    );
                     x += *w + self.column_spacing;
+                }
+
+                if is_selected {
+                    buf.set_stringn(
+                        table_area.left(),
+                        y + i as u16,
+                        highlight_symbol,
+                        ((table_area.left() - table_area.right()) as usize)
+                            .min(highlight_symbol.width()),
+                        highlight_style,
+                    );
                 }
             }
         }

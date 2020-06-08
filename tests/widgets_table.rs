@@ -653,3 +653,90 @@ pub fn widgets_table_should_respect_vertical_margins() {
         ]),
     );
 }
+
+#[test]
+pub fn widgets_table_should_max_margin_and_highlighter() {
+    let test_case = |margin, highlight_width, expected| {
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let highlight_symbol = ">".repeat(highlight_width);
+
+        terminal
+            .draw(|mut f| {
+                let size = f.size();
+                let table = Table::new(
+                    ["Head1", "Head2", "Head3"].iter(),
+                    vec![
+                        Row::Data(["Row11", "Row12", "Row13"].iter()),
+                        Row::Data(["Row21", "Row22", "Row23"].iter()),
+                        Row::Data(["Row31", "Row32", "Row33"].iter()),
+                        Row::Data(["Row41", "Row42", "Row43"].iter()),
+                    ]
+                    .into_iter(),
+                )
+                .block(Block::default().borders(Borders::ALL))
+                .widths(&[
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                    Constraint::Length(5),
+                ])
+                .column_spacing(1)
+                .margin(Margin::default().horizontal(margin))
+                .highlight_symbol(&highlight_symbol);
+                f.render_widget(table, size);
+            })
+            .unwrap();
+        terminal.backend().assert_buffer(&expected);
+    };
+
+    test_case(
+        0,
+        0,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│Head1 Head2 Head3           │",
+            "│                            │",
+            "│Row11 Row12 Row13           │",
+            "│Row21 Row22 Row23           │",
+            "│Row31 Row32 Row33           │",
+            "│Row41 Row42 Row43           │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        2,
+        1,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│  Head1 Head2 Head3         │",
+            "│                            │",
+            "│  Row11 Row12 Row13         │",
+            "│  Row21 Row22 Row23         │",
+            "│  Row31 Row32 Row33         │",
+            "│  Row41 Row42 Row43         │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+
+    test_case(
+        2,
+        3,
+        Buffer::with_lines(vec![
+            "┌────────────────────────────┐",
+            "│   Head1 Head2 Head3        │",
+            "│                            │",
+            "│   Row11 Row12 Row13        │",
+            "│   Row21 Row22 Row23        │",
+            "│   Row31 Row32 Row33        │",
+            "│   Row41 Row42 Row43        │",
+            "│                            │",
+            "│                            │",
+            "└────────────────────────────┘",
+        ]),
+    );
+}
